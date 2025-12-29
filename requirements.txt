@@ -1,0 +1,6 @@
+eaf_base_api
+bs4
+beautifulsoup4
+lxml
+h2
+brotli
