@@ -21,6 +21,13 @@ from typing import Optional, Literal
 from functools import cached_property
 from base_api import BaseCore, setup_logger
 
+try:
+    import lxml
+    parser = "lxml"
+
+except (ModuleNotFoundError, ImportError):
+    parser = "html.parser"
+
 
 class Video:
     def __init__(self, url: str, core: Optional[BaseCore] = None):
@@ -28,7 +35,7 @@ class Video:
         self.core = core
         self.logger = setup_logger(name="Porngo API - [Video]", log_file=None, level=logging.ERROR)
         self.html_content = self.core.fetch(self.url)
-        self.soup = BeautifulSoup(self.html_content, "lxml")
+        self.soup = BeautifulSoup(self.html_content, parser)
         self.metadata_containers = self.soup.find("div", class_="video-links").find_all("div", class_="video-links__row")
 
     def enable_logging(self, log_file: str = None, level=None, log_ip: str = None, log_port: int = None):
