@@ -4,8 +4,6 @@ Licensed under LGPLv3
 
 If you have not received a license with this library, see: https://www.gnu.org/licenses/lgpl-3.0.en.html
 """
-import logging
-
 try:
     from modules.consts import *
 
@@ -14,6 +12,7 @@ except (ModuleNotFoundError, ImportError):
 
 
 import os
+import logging
 import traceback
 
 from bs4 import BeautifulSoup
