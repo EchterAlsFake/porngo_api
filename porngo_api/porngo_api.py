@@ -14,6 +14,7 @@ except (ModuleNotFoundError, ImportError):
 import os
 import logging
 import traceback
+import threading
 
 from bs4 import BeautifulSoup
 from typing import Optional, Literal
@@ -84,7 +85,8 @@ class Video:
         return direct_download_urls
 
 
-    def download(self, quality: Literal["480p", "720p"] = "720p", path="./", callback=None, no_title=False) -> bool:
+    def download(self, quality: Literal["480p", "720p"] = "720p", path="./", callback=None, no_title=False,
+                 stop_event: threading.Event = None) -> bool:
 
         if quality == "480p":
             download_url = self.direct_download_urls[0]
@@ -105,7 +107,7 @@ class Video:
             path = os.path.join(path, f"{self.title}.mp4")
 
         try:
-            self.core.legacy_download(url=download_url, path=path, callback=callback)
+            self.core.legacy_download(url=download_url, path=path, callback=callback, stop_event=stop_event)
             return True
 
         except Exception:
