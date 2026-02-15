@@ -84,6 +84,20 @@ class Video:
 
         return direct_download_urls
 
+    @cached_property
+    def video_qualities(self) -> list:
+        # This might not be perfectly accurate, but I just need this working for Porn Fetch, so this is fine
+
+        if len(self.direct_download_urls) == 2:
+            qualities = [480, 720] # HD should include 480 and 720 as to my definitions of what "HD" is
+
+        elif len(self.direct_download_urls) == 1:
+            qualities = [480] # SD should be like 480 idk
+
+        else:
+            qualities = []
+
+        return qualities
 
     def download(self, quality: Literal["480p", "720p"] = "720p", path="./", callback=None, no_title=False,
                  stop_event: threading.Event = None) -> bool:
