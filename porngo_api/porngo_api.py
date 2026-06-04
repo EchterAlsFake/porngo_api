@@ -13,6 +13,7 @@ except (ModuleNotFoundError, ImportError):
 
 import os
 import logging
+import asyncio
 import traceback
 import threading
 
@@ -34,9 +35,19 @@ class Video:
         self.url = url
         self.core = core
         self.logger = setup_logger(name="Porngo API - [Video]", log_file=None, level=logging.ERROR)
-        self.html_content = self.core.fetch(self.url)
+        self.html_content = None
+        self.soup = None
+
+    async def init(self):
+        if not self.html_content:
+            self.html_content = await self.get_html_content()
+
         self.soup = BeautifulSoup(self.html_content, parser)
         self.metadata_containers = self.soup.find("div", class_="video-links").find_all("div", class_="video-links__row")
+        return self
+
+    async def get_html_content(self) -> str:
+        return await self.core.fetch(self.url)
 
     def enable_logging(self, log_file: str = None, level=None, log_ip: str = None, log_port: int = None):
         self.logger = setup_logger(name="Porngo API - [Video]", log_file=log_file, level=level, http_ip=log_ip, http_port=log_port)
@@ -99,7 +110,7 @@ class Video:
 
         return qualities
 
-    def download(self, quality: Literal["480p", "720p"] = "720p", path="./", callback=None, no_title=False,
+    async def download(self, quality: Literal["480p", "720p"] = "720p", path="./", callback=None, no_title=False,
                  stop_event: threading.Event = None) -> bool:
 
         if quality == "480p":
@@ -121,7 +132,7 @@ class Video:
             path = os.path.join(path, f"{self.title}.mp4")
 
         try:
-            self.core.legacy_download(url=download_url, path=path, callback=callback, stop_event=stop_event)
+            await self.core.legacy_download(url=download_url, path=path, callback=callback, stop_event=stop_event)
             return True
 
         except Exception:
