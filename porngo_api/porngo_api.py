@@ -36,7 +36,8 @@ class Video:
         self.core = core
         self.logger = setup_logger(name="Porngo API - [Video]", log_file=None, level=logging.ERROR)
         self.html_content = None
-        self.soup = None
+        self.metadata_containers: Optional[list] = None
+        self.soup: Optional[BeautifulSoup] = None
 
     async def init(self):
         if not self.html_content:
@@ -151,10 +152,10 @@ class Client:
         self.logger = setup_logger(name="Porngo API - [Client]", log_file=log_file, level=level, http_ip=log_ip,
                                    http_port=log_port)
 
-    def get_video(self, url: str) -> Video:
+    async def get_video(self, url: str) -> Video:
         """
         :param url: (str) The video URL
         :return: (Video) The video object
         """
-        return Video(url, core=self.core)
-
+        video = Video(url, core=self.core)
+        return await video.init()
