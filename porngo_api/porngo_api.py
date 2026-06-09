@@ -6,9 +6,11 @@ If you have not received a license with this library, see: https://www.gnu.org/l
 """
 try:
     from modules.consts import *
+    from .modules.errors import *
 
 except (ModuleNotFoundError, ImportError):
     from .modules.consts import *
+    from .modules.errors import *
 
 
 import os
@@ -18,9 +20,11 @@ import traceback
 import threading
 
 from bs4 import BeautifulSoup
+from curl_cffi import Response
 from typing import Optional, Literal
 from functools import cached_property
 from base_api import BaseCore, setup_logger
+from base_api.modules.errors import NetworkingError, InvalidProxy, BotProtectionDetected, UnknownError
 
 try:
     import lxml
@@ -30,27 +34,56 @@ except (ModuleNotFoundError, ImportError):
     parser = "html.parser"
 
 
+async def get_html_content(core: BaseCore, url: str) -> str | None:
+    # What should I do here?
+    try:
+        content = await core.fetch(url)
+        if isinstance(content, str):
+            return content
+
+        if isinstance(content, Response):
+            if content.status_code == 404:
+                raise NotFound(f"Server returned 404 for: {url}")
+
+    except NetworkingError:
+        raise NetworkError from NetworkingError
+
+    except InvalidProxy:
+        raise ProxyError from InvalidProxy
+
+    except BotProtectionDetected:
+        raise BotDetection from BotProtectionDetected
+
+    except UnknownError:
+        raise UnknownNetworkError from UnknownError
+
+
 class Video:
-    def __init__(self, url: str, core: Optional[BaseCore] = None):
+    def __init__(self, url: str, core: BaseCore):
         self.url = url
         self.core = core
         self.logger = setup_logger(name="Porngo API - [Video]", log_file=None, level=logging.ERROR)
         self.html_content = None
         self.metadata_containers: Optional[list] = None
-        self.soup: Optional[BeautifulSoup] = None
+        self._soup: BeautifulSoup | None = None
 
     async def init(self):
         if not self.html_content:
-            self.html_content = await self.get_html_content()
+            self.html_content = await get_html_content(core=self.core, url=self.url)
+            assert isinstance(self.html_content, str)
 
-        self.soup = BeautifulSoup(self.html_content, parser)
+        self._soup = BeautifulSoup(self.html_content, parser)
         self.metadata_containers = self.soup.find("div", class_="video-links").find_all("div", class_="video-links__row")
         return self
 
-    async def get_html_content(self) -> str:
-        return await self.core.fetch(self.url)
+    @property
+    def soup(self) -> BeautifulSoup:
+        if not self._soup:
+            raise ValueError("You probably forgot to call: .init() ")
 
-    def enable_logging(self, log_file: str = None, level=None, log_ip: str = None, log_port: int = None):
+        return self._soup
+
+    def enable_logging(self, log_file: str | None = None, level=None, log_ip: str | None = None, log_port: int | None = None):
         self.logger = setup_logger(name="Porngo API - [Video]", log_file=log_file, level=level, http_ip=log_ip, http_port=log_port)
 
     @cached_property
@@ -79,7 +112,7 @@ class Video:
 
     @cached_property
     def thumbnail(self) -> str:
-        return self.soup.find("meta", property="og:image")["content"]
+        return self.soup.find("meta", property="og:image").get("content")
 
     @cached_property
     def likes(self) -> str:
@@ -112,7 +145,7 @@ class Video:
         return qualities
 
     async def download(self, quality: Literal["480p", "720p"] = "720p", path="./", callback=None, no_title=False,
-                 stop_event: threading.Event = None) -> bool:
+                 stop_event: threading.Event | None = None) -> bool:
 
         if quality == "480p":
             download_url = self.direct_download_urls[0]
@@ -143,12 +176,12 @@ class Video:
 
 
 class Client:
-    def __init__(self, core: Optional[BaseCore] = None):
-        self.core = core or BaseCore()
+    def __init__(self, core: BaseCore = BaseCore()):
+        self.core = core
         self.core.initialize_session()
         self.logger = setup_logger(name="Porngo API - [Client]", log_file=None, level=logging.ERROR)
 
-    def enable_logging(self, log_file: str = None, level=None, log_ip: str = None, log_port: int = None):
+    def enable_logging(self, log_file: str | None = None, level=None, log_ip: str | None = None, log_port: int | None = None):
         self.logger = setup_logger(name="Porngo API - [Client]", log_file=log_file, level=level, http_ip=log_ip,
                                    http_port=log_port)
 
